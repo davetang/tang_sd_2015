@@ -15,7 +15,6 @@ class <- c('intronic',
            'ncRNA_splicing')
 
 class <- factor(x = class, levels = rev(class))
-df <- data.frame(class = class, count = count)
 
 count <- c(142280, #intronic
            90117, #UTR3
@@ -28,6 +27,8 @@ count <- c(142280, #intronic
            1366, #intergenic
            607, #splicing
            95) #ncRNA_splicing
+           
+df <- data.frame(class = class, count = count)
 
 class2 <- c('nonsynonymous SNV',
             'synonymous SNV',
