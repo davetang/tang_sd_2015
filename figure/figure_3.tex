@@ -1,0 +1,72 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[default]{sourcesanspro}
+\usepackage{tikz,tkz-euclide}
+\usetikzlibrary{decorations.text}
+\usetikzlibrary{decorations.text}
+\usetikzlibrary{decorations.pathmorphing, shapes}
+\usetikzlibrary{shapes,arrows}
+\usetikzlibrary{calc}
+%%%<
+\usepackage{verbatim}
+\usepackage[active,tightpage]{preview}
+\PreviewEnvironment{tikzpicture}
+\setlength\PreviewBorder{5pt}%
+%%%>
+
+
+%%%<
+\usepackage{verbatim}
+\usepackage[active,tightpage]{preview}
+%\PreviewEnvironment{tikzpicture}
+\setlength\PreviewBorder{5pt}%
+
+\usepackage{color}
+\usepackage{tikz}
+
+\usetikzlibrary{backgrounds}
+\tikzset{font=\Large}
+\definecolor{background}{RGB}{24,24,24}
+
+\definecolor{lightred}{RGB}{235,170,170}
+\definecolor{darkred}{RGB}{155,50,50}
+
+\definecolor{lightblue}{RGB}{170,170,235}
+\definecolor{darkblue}{RGB}{50,50,175}
+
+\definecolor{lightgreen}{RGB}{170,220,150}
+\definecolor{darkgreen}{RGB}{30,80,30}
+
+
+\definecolor{lightorange}{RGB}{226,210,140}
+\definecolor{darkorange}{RGB}{90,70,10}
+
+\definecolor{lightpurple}{RGB}{210,150,230}
+\definecolor{darkpurple}{RGB}{70,30,100}
+
+\definecolor{gray}{RGB}{225, 225, 225}
+
+\definecolor{darkgray}{RGB}{115, 115, 115}
+
+\begin{document}
+\pagestyle{empty}
+    
+\begin{tikzpicture}
+
+ \coordinate (middle) at (0,0);
+
+
+\node [anchor=west]at (0,0){\includegraphics[height=12cm]{Genomic.pdf}};
+
+\node [anchor=west]at (15,0){\includegraphics[height=12cm]{Exonic.pdf}};
+ %\draw[help lines] (0,0) grid (30,10);
+ 
+ \path[shade,left color = red,opacity=0.1] (9.4,2.4)--(11.2,2.4)--(16.2,-4.82)-- (32,-4.82) -- (32,5.33)--(15.5,5.33) --(14.5,3.3)--  (9.4,3.3) ;
+
+ \node  [anchor=west]at (0.5,5.75){\Huge \bf a};
+  \node  [anchor=west]at (15.5,5.75){\Huge \bf b};
+
+\end{tikzpicture}
+
+\end{document}
