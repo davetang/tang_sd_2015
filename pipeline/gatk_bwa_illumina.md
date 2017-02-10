@@ -9,17 +9,30 @@ def BASEROOTDIR="BASEDIRNAME"
 
 ~~~~
 
-Our pipeline makes several assumptions: 1) the protocol used is Illumina's TruSeq Exome Protocol, 2) the data is human, and 3) the raw files are named in the format: XXX_XXX_BARCODE_LANE_READ.fastq.gz.
+Our pipeline makes several assumptions: 1) the protocol used is Illumina's TruSeq Exome Protocol, 2) the data is human (reads are mapped to hg19.fa), and 3) the raw files are named in the format: XXX_XXX_BARCODE_LANE_READ.fastq.gz. If you are using a different capture protocol, change the `TARGETREGIONS` accordingly. If your FASTQ file is not in the expected format, the information is usually in the [header line of the FASTQ file](https://en.wikipedia.org/wiki/FASTQ_format#Illumina_sequence_identifiers) and you can change your file name accordingly. For example:
 
-~~~~{.java}
+```
+# example header line
+# @ERR031940.1 A81BHGABXX:3:1101:1438:2135#NCCAATAT/1
+
+ERR031940.1 A81BHGABXX   the unique instrument name
+3                        flowcell lane
+1101                     tile number within the flowcell lane
+1438                     'x'-coordinate of the cluster within the tile
+2135                     'y'-coordinate of the cluster within the tile
+NCCAATAT                 index number for a multiplexed sample (0 for no indexing)
+/1                       the member of a pair, /1 or /2 (paired-end or mate-pair reads only)
+```
+
+```java
 
 def PLATFORM="illumina"
 
-~~~~
+```
 
 Resources files that are used throughout the GATK pipeline are declared as variables here so that can be reused throughout the pipeline; these files are from the GATK data bundle.
 
-~~~~{.java}
+```java
 
 def GENOME="$BASEROOTDIR" + "/bundle/2.8/hg19/ucsc.hg19.fasta"
 def MILLS1000GINDEL="$BASEROOTDIR" +"/bundle/2.8/hg19/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf"
@@ -28,29 +41,29 @@ def TARGETREGIONS="$BASEROOTDIR" +"/misc/TruSeq-Exome-Targeted-Regions.bed"
 def HAPMAP="$BASEROOTDIR" +"/bundle/2.8/hg19/hapmap_3.3.hg19.sites.vcf"
 def OMNI="$BASEROOTDIR" +"/bundle/2.8/hg19/1000G_omni2.5.hg19.sites.vcf"
 
-~~~~
+```
 
 The GATK pipeline uses several programs that are not part of the GATK. These programs are declared as variables here.
 
-~~~~{.java}
+```java
 
 def BWA ="$BASEROOTDIR" + "/programs/bwa-0.7.12/bwa"
 def SAMTOOLS = "$BASEROOTDIR"+ "/programs/samtools-1.2/samtools"
 def MARKDUPLICATES = "$BASEROOTDIR"+ "/programs/MarkDuplicates.jar"
 
-~~~~
+```
 
 The exome protocol captures regions slightly outside of exons; we use an interval padding of 100 bp to reflect this and this parameter is embedded in the GATK variable.
 
-~~~~{.java}
+```java
 
 def GATK = "$BASEROOTDIR"+ "/programs/GenomeAnalysisTK.jar --interval_padding 100 "
 
-~~~~
+```
 
 Two routines, namely ```get_id``` and ```get_sample```, are defined to obtain metadata directly from the raw FASTQ file names. The routines expect files to be in the format: XXX_XXX_BARCODE_LANE_READ.fastq.gz. These are then used to add read groups (RG) to the BAM files.
 
-~~~~{.java}
+```java
 
 def get_id(filename) {
    def info = filename.split("/")[-1].split("\\.")[0].split("_")
@@ -64,21 +77,21 @@ def get_sample(filename) {
    return(info[0])
 }
 
-~~~~
+```
 
 A script, ```check_bam_files.sh```, is used to check that the correct read groups (RG) are added to each BAM file. Errors may be introduced during parallelisation, when variables that should be local to one thread are used globally in other threads, which leads to namespace corruption. Using ```def``` should prevent this but it is important to double check that correct RGs are added.
 
-~~~~{.java}
+```java
 
 def CHECKBAM = "$BASEROOTDIR"+ "/scripts/check_bam_files.sh"
 
-~~~~
+```
 
 The first step of the pipeline is to align the FASTQ files to a reference; hg19 is used in this pipeline and BWA-MEM is used as the alignment program as recommended by the GATK best practices. This is the step where the read groups are added to the BAM file.
 
 The transform() function is a convenient alias for produce(); it deduces the name of the output or outputs by using the name of the input(s) and by modifying the file extension according to the transform() input.
 
-~~~~{.java}
+```java
 
 bwa_mem_align = {
    transform("bam") {
@@ -97,11 +110,11 @@ bwa_mem_align = {
    }
 }
 
-~~~~
+```
 
 The routine below simply indexes a BAM file. A forward instruction overrides the default files that are used for inputs to the next pipeline stage with files that you specify explicitly. We still want to use the BAM files as input in the next step.
 
-~~~~{.java}
+```java
 
 index_bam = {
    doc "Create BAM file index"
@@ -112,11 +125,11 @@ index_bam = {
    forward input
 }
 
-~~~~
+```
 
 This is the step that runs the script for checking whether read groups match the file name.
 
-~~~~{.java}
+```java
 
 check_bam_for_sample_names = {
    doc "Checks if read groups in a bam file match the file name."
@@ -124,11 +137,11 @@ check_bam_for_sample_names = {
    forward input
 }
 
-~~~~
+```
 
 Duplicates are creating during the DNA preparation step (e.g. during PCR amplification) and can cause biases that skew variant calling results. We use Picard to [remove potential PCR duplicates](https://www.broadinstitute.org/gatk/events/slides/1409/GATKwr5-BP-1-Map_and_Dedup.pdf), which are easy to spot because duplicate reads have an identical starting position and CIGAR string.
 
-~~~~{.java}
+```java
 
 dedup = {
    doc "Remove PCR duplicate reads from BAM"
@@ -144,11 +157,11 @@ dedup = {
    """
 }
 
-~~~~
+```
 
 Insertions and deletions (INDEL) cause misalignments, leading to false positive single nucleotide variants. The [step below](https://www.broadinstitute.org/gatk/events/slides/1409/GATKwr5-BP-2-Realignment.pdf) identifies potential INDEL regions that require realignment.
 
-~~~~{.java}
+```java
 
 realignIntervals = {
    doc "Select regions for realignment with GATK in 'realign' stage"
@@ -165,11 +178,11 @@ realignIntervals = {
    """
 }
 
-~~~~
+```
 
 Once candidate regions have been identified in the realignIntervals step, these regions are carefully realigned.
 
-~~~~{.java}
+```java
 
 realign = {
    doc "Apply GATK local realignment to intervals selected in stage 'realignIntervals' "
@@ -185,11 +198,11 @@ realign = {
    """
 }
 
-~~~~
+```
 
 The [Base Quality Score Recalibration](https://www.broadinstitute.org/gatk/events/slides/1409/GATKwr5-BP-3-Base_recalibration.pdf) (BQSR) step is used to adjust base quality scores assigned by the sequencer; this is necessary as these base qualities are inaccurate and biased. A sliding window approach is used to tally the number of mismatches against the reference; loci that are known to vary are not used in the calculation. BQSR identifies patterns in how errors correlate with base features, such as the machine cycle or positions in a read.
 
-~~~~{.java}
+```java
 
 recal_count = {
    doc "Recalibrate base qualities in a BAM file using observed error rates"
@@ -210,11 +223,11 @@ recal_count = {
    """
 }
 
-~~~~
+```
 
 This is the second part of the BQSR step, which applies the recalibrated data to a new file.
 
-~~~~{.java}
+```java
 
 recal = {
    doc "Apply recalibration quality adjustments"
@@ -231,11 +244,11 @@ recal = {
    """
 }
 
-~~~~
+```
 
 This step merges BAM files, if they belong to the same sample. If there is only one BAM file, the BAM file is copied with a new file name. The produce statement declares a block of statements that will be executed transactionally to create a given set of outputs.
 
-~~~~{.java}
+```java
 
 bam_merge = {
    doc "Merge Bam files "
@@ -257,11 +270,11 @@ bam_merge = {
    }
 }
 
-~~~~
+```
 
 The [HaplotypeCaller](https://www.broadinstitute.org/gatk/guide/article?id=4148) is composed of four steps: defining active regions, determining haplotypes by re-assembly of the active regions, determining the likelihoods of the haplotypes given the read data, and assigning sample genotypes. We use the HaplotypeCaller in the ```GVCF``` mode, which allows variants to be called individually on each sample but merged later.
 
-~~~~{.java}
+```java
 
 HaplotypeCaller = {
    doc "Runs GATK HaplotypeCaller"
@@ -285,11 +298,11 @@ HaplotypeCaller = {
    }
 }
 
-~~~~
+```
 
 This step simply creates a file containing the list of [GVCF](https://www.broadinstitute.org/gatk/guide/article?id=4017) files.
 
-~~~~{.java}
+```java
 
 makevariantlist = {
    output.dir="variants"
@@ -302,11 +315,11 @@ makevariantlist = {
    }
 }
 
-~~~~
+```
 
 This step combines the list of GVCF files.
 
-~~~~{.java}
+```java
 
 combine_GVCF = {
    output.dir="variants"
@@ -324,11 +337,11 @@ combine_GVCF = {
    }
 }
 
-~~~~
+```
 
 This step will produce genotype likelihoods and re-genotype the newly merged record from the combine_GVCF step, and then re-annotate it.
 
-~~~~{.java}
+```java
 
 GenotypeGVCFs = {
    output.dir="variants"
@@ -348,11 +361,11 @@ GenotypeGVCFs = {
    }
 }
 
-~~~~
+```
 
 This step is the first part of the Variant Quality Score Recalibration (VQSR) [process](https://www.broadinstitute.org/gatk/guide/article?id=2805), which is the process of assigning accurate confidence scores to each putative variant call. The [first pass](https://www.broadinstitute.org/gatk/events/slides/1409/GATKwr5-BP-5-Variant_recalibration.pdf) consists of creating a Gaussian mixture model by looking at the distribution of annotation values over a high quality subset of the input call set, and then scoring all input variants according to the model.
 
-~~~~{.java}
+```java
 
 recalibrate_SNP = {
    output.dir="variants"
@@ -381,11 +394,11 @@ recalibrate_SNP = {
    forward input.vcf
 }
 
-~~~~
+```
 
 This is the second part of the VQSR step and consists of filtering variants based on score cut-offs identified in the first pass. The filter command is a convenient alias for produce where the name of the output or outputs is deduced from the name of the input(s) by keeping the same file extension but adding a new tag to the file name.
 
-~~~~{.java}
+```java
 
 Apply_SNP_Recalibration = {
    output.dir="variants"
@@ -405,11 +418,11 @@ Apply_SNP_Recalibration = {
    }
 }
 
-~~~~
+```
 
 This is step one of the VQSR step for Indels.
 
-~~~~{.java}
+```java
 
 recalibrate_INDEL = {
    output.dir="variants"
@@ -436,11 +449,11 @@ recalibrate_INDEL = {
    forward input.vcf
 }
 
-~~~~
+```
 
 This step two of the VQSR step for Indels.
 
-~~~~{.java}
+```java
 
 Apply_INDEL_Recalibration = {
    output.dir="variants"
@@ -459,23 +472,23 @@ Apply_INDEL_Recalibration = {
    }
 }
 
-~~~~
+```
 
 Finally the code below defines the pipeline and how it should be run. The pipeline starts with an input splitting pattern defined by the ```%``` character; this defines which part of the file name should be used to split the input files into groups. The ```*``` character orders the groups but DOES NOT split the input; for more information take a look at [parallelising tasks](https://code.google.com/p/bpipe/wiki/ParallelTasks) in the Bpipe documentation.
 
-~~~~{.java}
+```java
 
 Bpipe.run {"%_L00%_R*.fastq.gz" * [ bwa_mem_align + index_bam + dedup + index_bam + realignIntervals + realign + index_bam + recal_count + recal + index_bam] + "%_*.fastq.dedup.realign.recal.bam"  * [bam_merge + check_bam_for_sample_names + index_bam + dedup + index_bam + realignIntervals + realign + index_bam + HaplotypeCaller ] + makevariantlist + combine_GVCF + GenotypeGVCFs + recalibrate_SNP + Apply_SNP_Recalibration + recalibrate_INDEL + Apply_INDEL_Recalibration}
 
-~~~~
+```
 
 # Running the pipeline
 
 To run the pipeline:
 
-~~~~{.bash}
+```bash
 bpipe run -n 20 -r gatk_bwa_illunmina.groovy *.fastq.gz
-~~~~
+```
 
 The ```-r``` parameter generates a basic report and the ```-n``` parameter defines the number of threads to use throughout the pipeline.
 
